@@ -36,6 +36,7 @@ import com.facebook.presto.type.TypeUtils;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
+import io.airlift.log.Logger;
 
 import java.lang.invoke.MethodHandle;
 import java.util.Map;
@@ -55,6 +56,8 @@ import static com.facebook.presto.metadata.Signature.internalOperator;
 import static com.facebook.presto.metadata.Signature.typeParameter;
 import static com.facebook.presto.spi.StandardErrorCode.FUNCTION_NOT_FOUND;
 import static com.facebook.presto.sql.gen.CompilerUtils.defineClass;
+import static com.facebook.presto.sql.relational.Signatures.tryCastSignature;
+import static com.facebook.presto.type.UnknownType.UNKNOWN;
 import static com.facebook.presto.util.Reflection.methodHandle;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
@@ -63,6 +66,8 @@ public class ArrayToArrayCast
         extends ParametricOperator
 {
     public static final ArrayToArrayCast ARRAY_TO_ARRAY_CAST = new ArrayToArrayCast();
+
+    private static final Logger log = Logger.get(ArrayToArrayCast.class);
 
     private ArrayToArrayCast()
     {
@@ -75,6 +80,9 @@ public class ArrayToArrayCast
         checkArgument(arity == 1, "Expected arity to be 1");
         Type fromType = types.get("F");
         Type toType = types.get("T");
+        if (fromType.equals(UNKNOWN)) {
+            fromType = typeManager.getType(tryCastSignature(fromType, toType).getReturnType());
+        }
 
         ArrayType fromArrayType = (ArrayType) typeManager.getParameterizedType(StandardTypes.ARRAY, ImmutableList.of(fromType.getTypeSignature()), ImmutableList.of());
         ArrayType toArrayType = (ArrayType) typeManager.getParameterizedType(StandardTypes.ARRAY, ImmutableList.of(toType.getTypeSignature()), ImmutableList.of());
